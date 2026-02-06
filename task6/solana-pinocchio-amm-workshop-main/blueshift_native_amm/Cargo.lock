@@ -6,6 +6,7 @@ version = 4
 name = "blueshift_native_amm"
 version = "0.1.0"
 dependencies = [
+ "constant-product-curve",
  "pinocchio",
  "pinocchio-associated-token-account",
  "pinocchio-system",
@@ -13,10 +14,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "constant-product-curve"
+version = "0.1.0"
+source = "git+https://github.com/deanmlittle/constant-product-curve#2a723a0ff5ad522f657f80c053c2bb290da28b70"
+
+[[package]]
 name = "five8"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23f76610e969fa1784327ded240f1e28a3fd9520c9cec93b636fcf62dd37f772"
+dependencies = [
+ "five8_core",
+]
+
+[[package]]
+name = "five8_const"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26dec3da8bc3ef08f2c04f61eab298c3ab334523e55f076354d6d6f613799a7b"
 dependencies = [
  "five8_core",
 ]
@@ -32,22 +47,15 @@ dependencies = [
 
 [[package]]
 name = "five8_core"
-version = "1.0.0"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "059c31d7d36c43fe39d89e55711858b4da8be7eb6dabac23c7289b1a19489406"
+checksum = "2551bf44bc5f776c15044b9b94153a00198be06743e262afaaa61f11ac7523a5"
 
 [[package]]
 name = "pinocchio"
-version = "0.10.1"
+version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfad955b2fe8f736e1ea276ebb31820d778ee69c1161146054e9b31be2e73326"
-dependencies = [
- "solana-account-view",
- "solana-address",
- "solana-define-syscall",
- "solana-instruction-view",
- "solana-program-error",
-]
+checksum = "5b971851087bc3699b001954ad02389d50c41405ece3548cbcafc88b3e20017a"
 
 [[package]]
 name = "pinocchio-associated-token-account"
@@ -62,26 +70,41 @@ dependencies = [
 ]
 
 [[package]]
-name = "pinocchio-system"
-version = "0.5.0"
+name = "pinocchio-pubkey"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24044a0815753862b558e179e78f03f7344cb755de48617a09d7d23b50883b6c"
+checksum = "cb0225638cadcbebae8932cb7f49cb5da7c15c21beb19f048f05a5ca7d93f065"
+dependencies = [
+ "five8_const 0.1.4",
+ "pinocchio",
+ "sha2-const-stable",
+]
+
+[[package]]
+name = "pinocchio-system"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4be2a6dad40b5e75d1486f021619c4bd504c34c1362c9b94ed7fa525b1cc63cc"
 dependencies = [
  "pinocchio",
- "solana-address",
+ "pinocchio-pubkey",
 ]
 
 [[package]]
 name = "pinocchio-token"
-version = "0.5.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "febf3bbe37f4e2723b9b41a1768c6542a1ae1b1d7bcac27f892f30cabcf70ec4"
+checksum = "4eb3a10d04ea7a633c01c4fe68eb650b4606cee4a3977bd1a1259cba324abafb"
 dependencies = [
- "solana-account-view",
- "solana-address",
- "solana-instruction-view",
- "solana-program-error",
+ "pinocchio",
+ "pinocchio-pubkey",
 ]
+
+[[package]]
+name = "sha2-const-stable"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f179d4e11094a893b82fff208f74d448a7512f99f5a0acbd5c679b705f83ed9"
 
 [[package]]
 name = "solana-account-view"
@@ -100,8 +123,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e37320fd2945c5d654b2c6210624a52d66c3f1f73b653ed211ab91a703b35bdd"
 dependencies = [
  "five8",
- "five8_const",
- "solana-define-syscall",
+ "five8_const 1.0.0",
  "solana-program-error",
 ]
 

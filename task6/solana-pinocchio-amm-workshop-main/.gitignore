@@ -1,0 +1,15 @@
+# 忽略编译生成的 target 目录
+target/
+**/*.so
+**/*.p64
+
+# 忽略缓存和日志
+.anchor/
+.DS_Store
+node_modules/
+dump.txt
+test-ledger/
+
+# 忽略环境变量
+.env
+.vscode/

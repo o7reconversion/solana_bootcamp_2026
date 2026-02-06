@@ -1,0 +1,65 @@
+fail_fast: false
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit, manual]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-byte-order-marker
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      # 1. Rust 格式化：去掉 files 限制或改用通配符，让 cargo fmt 扫描全集
+      - id: cargo-fmt
+        name: cargo fmt
+      # 进入子目录执行格式化检查
+        entry: bash -c 'for dir in blueshift_native_amm pinocchio_amm; do (cd $dir && cargo fmt -- --check); done'
+        language: system
+        always_run: true # 强制运行，让 cargo 处理内部逻辑
+        pass_filenames: false
+
+      # 2. TOML 格式化：确保匹配所有目录下的 toml
+      - id: taplo-fmt
+        name: taplo fmt
+        entry: bash -c 'taplo fmt --option reorder_keys=true --check'
+        language: system
+        files: \.toml$
+
+      # 3. 拼写检查
+      - id: typos
+        name: typos
+        entry: bash -c 'typos'
+        language: system
+        pass_filenames: false
+
+      # 4. 关键：修正子目录检查
+      # 使用 always_run 或确保 files 正则覆盖子目录路径
+      - id: cargo-check
+        name: cargo check (all projects)
+        entry: bash -c 'for dir in blueshift_native_amm pinocchio_amm; do (cd $dir && cargo check --all); done'
+        language: system
+        always_run: true
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy (all projects)
+        entry: bash -c 'for dir in blueshift_native_amm pinocchio_amm; do (cd $dir && cargo clippy --all-targets --all-features -- -D warnings); done'
+        language: system
+        always_run: true
+        pass_filenames: false
+
+      # 5. 安全审计
+      - id: cargo-deny
+        name: cargo deny check
+        entry: bash -c 'for dir in blueshift_native_amm pinocchio_amm; do (cd $dir && cargo deny check --config ../deny.toml); done'
+        language: system
+        always_run: true
+        pass_filenames: false

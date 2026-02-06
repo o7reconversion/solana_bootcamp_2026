@@ -1,0 +1,180 @@
+# justfile — Solana / Anchor / Pinocchio 通用模板
+# Usage:
+#   just <command> [CLUSTER=devnet] [PROGRAM_NAME=myprog] [WALLET=/path/to/keypair]
+#
+# Examples:
+#   just build
+#   just build CLUSTER=localnet
+#   just deploy CLUSTER=devnet
+#   just info
+
+# -----------------------
+# Defaults (can be overridden by environment or command-line args)
+# -----------------------
+CLUSTER := "devnet"                  # override with: just <cmd> CLUSTER=localnet
+# capture HOME from environment (backticks run a shell command)
+HOME := `echo $HOME`
+WALLET := HOME + "/.config/solana/id.json"   # override with: just <cmd> WALLET=/path/to/id.json
+
+PROGRAM_NAME := `awk -F'"' '/^[[:space:]]*name[[:space:]]*=/{print $2; exit}' Cargo.toml || echo "program"`
+
+PROGRAM_KEYPAIR := "target/deploy/" + PROGRAM_NAME + "-keypair.json"
+PROGRAM_SO := "target/deploy/" + PROGRAM_NAME + ".so"
+IDL_JSON := "target/idl/" + PROGRAM_NAME + ".json"
+
+# -----------------------
+# RPC URL selection (inline expression required by just)
+# -----------------------
+LOCALNET_RPC_URL := "http://localhost:8899"
+DEVNET_RPC_URL := "https://api.devnet.solana.com"
+MAINNET_RPC_URL := "https://api.mainnet-beta.solana.com"
+
+RPC_URL := if CLUSTER == "localnet" {
+  LOCALNET_RPC_URL
+} else if CLUSTER == "devnet" {
+  DEVNET_RPC_URL
+} else if CLUSTER == "mainnet-beta" {
+  MAINNET_RPC_URL
+} else {
+  error("Invalid CLUSTER: " + CLUSTER)
+}
+
+# -----------------------
+# Defaults for compute / retries
+# -----------------------
+COMPUTE_UNIT_PRICE := "100000"
+
+# -----------------------
+# Default task
+# -----------------------
+default:
+  @just help
+
+# -----------------------
+# Info
+# -----------------------
+info:
+  @echo "-----------------------------"
+  @echo "Program Name: {{PROGRAM_NAME}}"
+  @echo "Cluster:      {{CLUSTER}}"
+  @echo "RPC URL:      {{RPC_URL}}"
+  @echo "Wallet:       {{WALLET}}"
+  @echo "Program .so:  {{PROGRAM_SO}}"
+  @echo "IDL JSON:     {{IDL_JSON}}"
+  @echo "-----------------------------"
+
+# -----------------------
+# Local validator control
+# -----------------------
+start-localnet:
+  solana-test-validator --reset
+
+stop-localnet:
+  pkill -f solana-test-validator || echo "No local validator running"
+
+reset-localnet:
+  just stop-localnet
+  just start-localnet
+
+# -----------------------
+# Build / Test / Format / Lint
+# -----------------------
+fmt:
+  cargo fmt --all
+
+lint: fmt
+  cargo clippy --all -- -D warnings || echo "clippy failed (fix warnings or install clippy)"
+
+build: fmt
+  echo "Building (SBF/native) program '{{PROGRAM_NAME}}'..."
+  cargo build-sbf
+
+build-release: fmt
+  echo "Building release (SBF) ..."
+  cargo build-sbf --release
+
+test: build
+  echo "Running anchor test (will auto start local validator if needed)"
+  anchor test
+
+size: build
+  ls -lh {{PROGRAM_SO}} || echo "No program .so found at {{PROGRAM_SO}}"
+
+# -----------------------
+# Deploy / Upgrade
+# -----------------------
+# Option A: use anchor deploy (recommended for Anchor projects)
+deploy-anchor: build
+  echo "Deploying with anchor to cluster {{CLUSTER}} ..."
+  anchor deploy --provider.cluster {{CLUSTER}} --provider.wallet {{WALLET}}
+
+# Option B: direct solana program deploy (useful for pinocchio/native)
+deploy-solana: build
+  echo "Deploying via solana program deploy to {{RPC_URL}} ..."
+  solana program deploy \
+    {{PROGRAM_SO}} \
+    --program-id {{PROGRAM_KEYPAIR}} \
+    --url {{RPC_URL}} \
+    --keypair {{WALLET}}
+
+# upgrade (anchor or solana)
+upgrade-anchor: build
+  echo "Upgrading via anchor ..."
+  anchor upgrade {{PROGRAM_SO}} --program-id {{PROGRAM_KEYPAIR}} --provider.cluster {{CLUSTER}} --provider.wallet {{WALLET}}
+
+upgrade-solana: build
+  echo "Upgrading via solana program deploy ..."
+  solana program deploy \
+    {{PROGRAM_SO}} \
+    --program-id {{PROGRAM_KEYPAIR}} \
+    --url {{RPC_URL}} \
+    --keypair {{WALLET}}
+
+# -----------------------
+# IDL commands
+# -----------------------
+idl-init: build
+  echo "Initializing IDL on-chain for program..."
+  anchor idl init --filepath {{IDL_JSON}} {{PROGRAM_KEYPAIR}} --provider.cluster {{CLUSTER}} --provider.wallet {{WALLET}}
+
+idl-upgrade: build
+  echo "Upgrading IDL on-chain..."
+  anchor idl upgrade --filepath {{IDL_JSON}} {{PROGRAM_KEYPAIR}} --provider.cluster {{CLUSTER}} --provider.wallet {{WALLET}}
+
+archive-idl: build
+  mkdir -p idls
+  TIMESTAMP=`date +'%Y-%m-%d-%H%M%S'`
+  DEST="idls/{{PROGRAM_NAME}}-${TIMESTAMP}.json"
+  cp {{IDL_JSON}} $DEST
+  echo "IDL archived to $DEST"
+
+# -----------------------
+# Clean / Misc
+# -----------------------
+clean:
+  rm -rf target/
+  rm -rf node_modules/
+  rm -f yarn.lock pnpm-lock.yaml bun.lockb || true
+
+check-balance:
+  solana balance --url {{RPC_URL}} || true
+
+help:
+  @echo ""
+  @echo "Usage: just <command> [VAR=value]"
+  @echo ""
+  @echo "Common commands:"
+  @echo "  just build                # build SBF"
+  @echo "  just build-release        # build release SBF"
+  @echo "  just test                 # run anchor tests"
+  @echo "  just deploy-anchor        # anchor deploy (recommended)"
+  @echo "  just deploy-solana        # direct solana program deploy"
+  @echo "  just upgrade-anchor       # anchor upgrade"
+  @echo "  just info                 # show settings"
+  @echo "  just start-localnet       # start local validator"
+  @echo "  just stop-localnet        # stop local validator"
+  @echo ""
+  @echo "Override defaults via environment or command-line:"
+  @echo "  just build CLUSTER=localnet"
+  @echo "  just deploy-anchor WALLET=/path/to/keypair"
+  @echo ""
