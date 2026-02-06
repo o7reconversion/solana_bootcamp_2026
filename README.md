@@ -1,4 +1,4 @@
-# 2026 Solana 开发者训练营
+# 2026 Solana 开发者训练营 Season 1
 
 来源：https://openbuild.xyz/learn/challenges/2086624241
 
